@@ -89,6 +89,43 @@ def get_prompt(lang, key):
     return PROMPTS.get(lang, PROMPTS["en"]).get(key, PROMPTS["en"][key])
 
 
+LANGUAGE_OPTIONS = {
+    "en": {
+        "menu_digit": "1",
+        "name": "English",
+        "plivo_language": "en-IN",
+        "plivo_voice": "Polly.Raveena",
+    },
+    "es": {
+        "menu_digit": "2",
+        "name": "Spanish",
+        "plivo_language": "es-US",
+        "plivo_voice": "Polly.Penelope",
+    },
+}
+
+DIGIT_TO_LANGUAGE = {
+    config["menu_digit"]: lang
+    for lang, config in LANGUAGE_OPTIONS.items()
+}
+
+
+def speak_text(text, lang="en", loop=1):
+    """Build a Speak element with explicit Plivo language and voice settings."""
+    config = LANGUAGE_OPTIONS.get(lang, LANGUAGE_OPTIONS["en"])
+    return plivo.plivoxml.SpeakElement(
+        text,
+        language=config["plivo_language"],
+        voice=config["plivo_voice"],
+        loop=loop,
+    )
+
+
+def speak_prompt(lang, key, loop=1):
+    """Build a Speak element for a prompt key in the requested language."""
+    return speak_text(get_prompt(lang, key), lang=lang, loop=loop)
+
+
 
 # Health Check for render
 
@@ -144,9 +181,10 @@ def answer():
         timeout=10,
         retries=5
     )
-    gd.add(plivo.plivoxml.SpeakElement(
+    gd.add(speak_text(
         "Welcome to InspireWorks. "
         "Please enter your 4-digit O T P to continue.",
+        lang="en",
         loop=1
     ))
     r.add(gd)
@@ -162,14 +200,10 @@ def otp():
     r = plivo.plivoxml.ResponseElement()
 
     if digits == OTP:
-        r.add(plivo.plivoxml.SpeakElement(
-            "Authentication successful. Welcome to InspireWorks!"
-        ))
+        r.add(speak_text("Authentication successful. Welcome to InspireWorks!"))
         r.add(plivo.plivoxml.RedirectElement(f"{BASE_URL}/ivr-level1", method="POST"))
     else:
-        r.add(plivo.plivoxml.SpeakElement(
-            "Incorrect O T P. Please try again."
-        ))
+        r.add(speak_text("Incorrect O T P. Please try again."))
         r.add(plivo.plivoxml.RedirectElement(f"{BASE_URL}/answer", method="POST"))
 
     return xml_resp(r)
@@ -189,10 +223,11 @@ def ivr_level1():
         timeout=10,
         retries=3
     )
-    gd.add(plivo.plivoxml.SpeakElement(
+    gd.add(speak_text(
         "Please select your language. "
         "Press 1 for English. "
         "Press 2 for Spanish.",
+        lang="en",
         loop=1
     ))
     r.add(gd)
@@ -208,13 +243,11 @@ def ivr_level2():
     lang_digit = request.form.get("Digits", "").strip()
     r = plivo.plivoxml.ResponseElement()
 
-    if lang_digit == "1":
-        lang, lang_name = "en", "English"
-    elif lang_digit == "2":
-        lang, lang_name = "es", "Spanish"
-    else:
+    lang = DIGIT_TO_LANGUAGE.get(lang_digit)
+
+    if not lang:
         # Go back to level 1 if invalid language input
-        r.add(plivo.plivoxml.SpeakElement(get_prompt("en", "invalid_selection")))
+        r.add(speak_prompt("en", "invalid_selection"))
         r.add(plivo.plivoxml.RedirectElement(f"{BASE_URL}/ivr-level1", method="POST"))
         return xml_resp(r)
 
@@ -225,7 +258,7 @@ def ivr_level2():
         timeout=10,
         retries=3
     )
-    gd.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "selected_language"), loop=1))
+    gd.add(speak_prompt(lang, "selected_language", loop=1))
     r.add(gd)
     # Fallback: no input 
     r.add(plivo.plivoxml.RedirectElement(
@@ -247,7 +280,7 @@ def ivr_level2_retry():
         timeout=10,
         retries=3
     )
-    gd.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "selected_language"), loop=1))
+    gd.add(speak_prompt(lang, "selected_language", loop=1))
     r.add(gd)
     r.add(plivo.plivoxml.RedirectElement(
         f"{BASE_URL}/ivr-level2-retry?lang={lang}", method="POST"
@@ -269,17 +302,17 @@ def ivr_action():
 
     if digit == "1":
         # Play audio message
-        r.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "playing_audio")))
+        r.add(speak_prompt(lang, "playing_audio"))
         r.add(plivo.plivoxml.PlayElement(
             "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
         ))
-        r.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "audio_done")))
+        r.add(speak_prompt(lang, "audio_done"))
         r.add(plivo.plivoxml.HangupElement())
 
     elif digit == "2":
         associate_number = normalize_indian_number(ASSOCIATE_NUMBER)
 
-        r.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "connecting_associate")))
+        r.add(speak_prompt(lang, "connecting_associate"))
         dial = plivo.plivoxml.DialElement(
             action=f"{BASE_URL}/dial-status?lang={lang}",
             method="POST",
@@ -292,7 +325,7 @@ def ivr_action():
 
     else:
         # Invalid input - reprompt
-        r.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "invalid_selection")))
+        r.add(speak_prompt(lang, "invalid_selection"))
         r.add(plivo.plivoxml.RedirectElement(
             f"{BASE_URL}/ivr-level2-retry?lang={lang}", method="POST"
         ))
@@ -310,7 +343,7 @@ def dial_status():
     if status == "completed":
         r.add(plivo.plivoxml.HangupElement())
     else:
-        r.add(plivo.plivoxml.SpeakElement(get_prompt(lang, "associate_unavailable")))
+        r.add(speak_prompt(lang, "associate_unavailable"))
         r.add(plivo.plivoxml.HangupElement())
 
     return xml_resp(r)
