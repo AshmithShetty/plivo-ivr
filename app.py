@@ -13,7 +13,7 @@ AUTH_ID          = os.getenv("PLIVO_AUTH_ID")
 AUTH_TOKEN       = os.getenv("PLIVO_AUTH_TOKEN")
 PLIVO_NUMBER     = os.getenv("PLIVO_NUMBER")
 BASE_URL         = os.getenv("BASE_URL", "http://localhost:5000").rstrip("/")
-OTP              = os.getenv("OTP")
+OTP              = "2407"
 
 # Associate number: 02264236412 
 ASSOCIATE_NUMBER = os.getenv("ASSOCIATE_NUMBER", "02264236412")
@@ -23,7 +23,6 @@ _required = {
     "PLIVO_AUTH_ID":    AUTH_ID,
     "PLIVO_AUTH_TOKEN": AUTH_TOKEN,
     "PLIVO_NUMBER":     PLIVO_NUMBER,
-    "OTP":              OTP,
 }
 _missing = [k for k, v in _required.items() if not v]
 if _missing:

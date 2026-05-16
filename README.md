@@ -27,7 +27,6 @@ Add these values to your `.env` file:
 PLIVO_AUTH_ID=your_auth_id
 PLIVO_AUTH_TOKEN=your_auth_token
 PLIVO_NUMBER=your_plivo_phone_number
-OTP=2407
 ASSOCIATE_NUMBER=your_associate_number
 BASE_URL=http://localhost:5000
 ```
