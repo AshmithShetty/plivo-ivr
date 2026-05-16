@@ -12,7 +12,7 @@ app = Flask(__name__)
 AUTH_ID          = os.getenv("PLIVO_AUTH_ID")
 AUTH_TOKEN       = os.getenv("PLIVO_AUTH_TOKEN")
 PLIVO_NUMBER     = os.getenv("PLIVO_NUMBER")
-BASE_URL         = os.getenv("BASE_URL", "http://localhost:5000")
+BASE_URL         = os.getenv("BASE_URL", "http://localhost:5000").rstrip("/")
 OTP              = os.getenv("OTP")
 
 # Associate number: 02264236412 
@@ -97,7 +97,7 @@ def answer():
     gd = plivo.plivoxml.GetDigitsElement(
         action=f"{BASE_URL}/otp",
         method="POST",
-        numDigits=4,
+        num_digits=4,
         timeout=10,
         retries=5
     )
@@ -142,7 +142,7 @@ def ivr_level1():
     gd = plivo.plivoxml.GetDigitsElement(
         action=f"{BASE_URL}/ivr-level2",
         method="POST",
-        numDigits=1,
+        num_digits=1,
         timeout=10,
         retries=3
     )
@@ -178,7 +178,7 @@ def ivr_level2():
     gd = plivo.plivoxml.GetDigitsElement(
         action=f"{BASE_URL}/ivr-action?lang={lang}",
         method="POST",
-        numDigits=1,
+        num_digits=1,
         timeout=10,
         retries=3
     )
@@ -206,7 +206,7 @@ def ivr_level2_retry():
     gd = plivo.plivoxml.GetDigitsElement(
         action=f"{BASE_URL}/ivr-action?lang={lang}",
         method="POST",
-        numDigits=1,
+        num_digits=1,
         timeout=10,
         retries=3
     )
