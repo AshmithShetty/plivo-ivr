@@ -40,6 +40,19 @@ def xml_resp(el):
     return FlaskResponse(el.to_string(), mimetype="text/xml")
 
 
+def normalize_indian_number(number):
+    """Normalize local Indian numbers to E.164 for Plivo."""
+    cleaned = "".join(ch for ch in str(number).strip() if ch.isdigit() or ch == "+")
+
+    if cleaned.startswith("+"):
+        return cleaned
+    if cleaned.startswith("0"):
+        return f"+91{cleaned[1:]}"
+    if cleaned.startswith("91"):
+        return f"+{cleaned}"
+    return f"+91{cleaned}"
+
+
 
 # Health Check for render
 
@@ -59,13 +72,7 @@ def index():
 @app.route("/make-call", methods=["POST"])
 def make_call():
     to_number = request.form.get("phone", "").strip()
-
-    # Normalising to Indian number
-    if not to_number.startswith("+"):
-        if to_number.startswith("91") and len(to_number) == 12:
-            to_number = "+" + to_number
-        else:
-            to_number = "+91" + to_number
+    to_number = normalize_indian_number(to_number)
 
     try:
         resp = client.calls.create(
@@ -150,7 +157,7 @@ def ivr_level1():
         "Please select your language. "
         "Press 1 for English. "
         "Press 2 for Spanish.",
-        loop=2
+        loop=1
     ))
     r.add(gd)
     # Fallback: no input
@@ -186,7 +193,7 @@ def ivr_level2():
         f"You have selected {lang_name}. "
         "Press 1 to play an audio message. "
         "Press 2 to connect to a live associate.",
-        loop=2
+        loop=1
     ))
     r.add(gd)
     # Fallback: no input 
@@ -214,7 +221,7 @@ def ivr_level2_retry():
         f"You have selected {lang_name}. "
         "Press 1 to play an audio message. "
         "Press 2 to connect to a live associate.",
-        loop=2
+        loop=1
     ))
     r.add(gd)
     r.add(plivo.plivoxml.RedirectElement(
@@ -247,17 +254,20 @@ def ivr_action():
         r.add(plivo.plivoxml.HangupElement())
 
     elif digit == "2":
-        
+        associate_number = normalize_indian_number(ASSOCIATE_NUMBER)
+
         r.add(plivo.plivoxml.SpeakElement(
             "Connecting you to a live associate. Please hold."
         ))
-        dial = plivo.plivoxml.DialElement()
-        dial.add(plivo.plivoxml.NumberElement(ASSOCIATE_NUMBER))
+        dial = plivo.plivoxml.DialElement(
+            action=f"{BASE_URL}/dial-status",
+            method="POST",
+            redirect="true",
+            caller_id=PLIVO_NUMBER,
+            timeout=20
+        )
+        dial.add(plivo.plivoxml.NumberElement(associate_number))
         r.add(dial)
-        r.add(plivo.plivoxml.SpeakElement(
-            "We are sorry, all associates are currently busy. Please contact later"
-        ))
-        r.add(plivo.plivoxml.HangupElement())
 
     else:
         # Invalid input - reprompt
@@ -265,6 +275,23 @@ def ivr_action():
         r.add(plivo.plivoxml.RedirectElement(
             f"{BASE_URL}/ivr-level2-retry?lang={lang}", method="POST"
         ))
+
+    return xml_resp(r)
+
+
+@app.route("/dial-status", methods=["GET", "POST"])
+def dial_status():
+    """Handle the result of the associate dial attempt."""
+    status = request.values.get("DialStatus", "").strip().lower()
+    r = plivo.plivoxml.ResponseElement()
+
+    if status == "completed":
+        r.add(plivo.plivoxml.HangupElement())
+    else:
+        r.add(plivo.plivoxml.SpeakElement(
+            "We are sorry, the associate is unavailable right now. Please try again later."
+        ))
+        r.add(plivo.plivoxml.HangupElement())
 
     return xml_resp(r)
 
