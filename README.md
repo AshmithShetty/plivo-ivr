@@ -60,7 +60,7 @@ The following values are also required for the IVR flow to work correctly:
 
 The application can be started locally, but the full IVR flow depends on Plivo calling back into the app on routes such as `/answer`, `/otp`, `/ivr-level1`, and `/ivr-action`.
 
-Because of that, full end-to-end testing requires a public URL. For the judge to test complete functionality, this app should be deployed on Render and `BASE_URL` must be set to the Render service URL.
+Because of that, full end-to-end testing requires a public URL. To test complete functionality, this app should be deployed on Render and `BASE_URL` must be set to the Render service URL.
 
 ## Render Setup
 
@@ -146,7 +146,7 @@ Open:
 http://localhost:5000
 ```
 
-Note: local execution alone does not provide the full callback-based IVR experience unless the app is exposed through a public tunnel. The recommended judge setup is Render.
+Note: local execution alone does not provide the full callback-based IVR experience unless the app is exposed through a public tunnel.
 
 ### B. Full end-to-end test on Render
 
